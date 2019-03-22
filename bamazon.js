@@ -17,7 +17,7 @@ var questions = [
   {
     input: "input",
     message: "How many would you like to purchase?",
-    name: "productQuantity"
+    name: "orderQuantity"
   },
   {
     type: "confirm",
@@ -27,11 +27,11 @@ var questions = [
   }
 ];
 
-con.connect(function(err, result) {
+con.connect(function (err, result) {
   if (err) throw err;
   console.log("Connected!");
   var sql = "SELECT * FROM products";
-  con.query(sql, function(err, result) {
+  con.query(sql, function (err, result) {
     if (err) throw err;
     console.log(
       `\nHere is our catalog! Please let us know what product you would like by identifying the Product ID \n\n Product ID  |  (Price)   Product Name`
@@ -39,49 +39,48 @@ con.connect(function(err, result) {
 
     for (let i in result) {
       if (i < 9) {
-        console.log(
-          `      ${result[i].id}      |  ($${result[i].price})  ${
-            result[i].product_name
-          }`
-        );
+        console.log(`      ${result[i].id}      |  ($${result[i].price})  ${result[i].product_name}`);
       } else {
-        console.log(
-          `     ${result[i].id}      |  ($${result[i].price})  ${
-            result[i].product_name
-          }\n`
-        );
+        console.log(`     ${result[i].id}      |  ($${result[i].price})  ${result[i].product_name}\n`);
       }
     }
-    inquirer.prompt(questions).then(function(inquirerResponse) {
+    inquirer.prompt(questions).then(function (inquirerResponse) {
       // If the inquirerResponse confirms, we displays the inquirerResponse's username and pokemon from the answers.
       if (inquirerResponse.confirm) {
         var { productId } = inquirerResponse;
-        var { productQuantity } = inquirerResponse;
-        if (result[productId - 1].stock_quantity > productQuantity) {
+        var { orderQuantity } = inquirerResponse;
+        var updatedStockQuantity = 0;
+
+        if (result[productId - 1].stock_quantity > orderQuantity) {
+          updatedStockQuantity = result[productId - 1].stock_quantity - orderQuantity;
           console.log(
-            `Receipt: ${
-              result[productId - 1].product_name
-            } x (${productQuantity}) = $${productQuantity *
-              result[productId - 1].price}`
-          );
+            `Receipt: ${result[productId - 1].product_name} x (${orderQuantity}) = $${orderQuantity * result[productId - 1].price}`);
+
+          sql = `UPDATE products SET stock_quantity = ${updatedStockQuantity} WHERE id = ${productId}`;
+          con.query(sql, function (err, result) {
+            if (err) throw err;
+          });
+
         } else if (result[productId - 1].stock_quantity > 0) {
           console.log(
-            `There are only ${
-              result[productId - 1].stock_quantity
-            } left in stock!\n Here they are:`
-          );
+            `There are only ${result[productId - 1].stock_quantity} left in stock!\n Here they are:\nReceipt: ${result[productId - 1].product_name} x (${result[productId - 1].stock_quantity}) = $${result[productId - 1].stock_quantity * result[productId - 1].price}`);
+
+          sql = `UPDATE products SET stock_quantity = 0 WHERE id = ${productId}`;
+          con.query(sql, function (err, result) {
+            if (err) throw err;
+          });
+
+        } else {
           console.log(
-            `Receipt: ${result[productId - 1].product_name} x (${
-              result[productId - 1].stock_quantity
-            }) = $${result[productId - 1].stock_quantity *
-              result[productId - 1].price}`
-          );
+            `There are no more ${result[productId - 1].product_name} left in stock!\nSorry!\nWe will restock next time you come back!`);
+          sql = `UPDATE products SET stock_quantity = 10 WHERE id = ${productId}`;
+          con.query(sql, function (err, result) {
+            if (err) throw err;
+          });
         }
       }
     });
   });
 });
 
-// con.query(sql, function(err, result) {
-//   if (err) throw err;
-// });
+
